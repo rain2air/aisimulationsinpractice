@@ -1,0 +1,11 @@
+{
+  "name": "voting-platform",
+  "version": "1.0.0",
+  "description": "로그인 없는 웹 투표 플랫폼 (1인 1표, 투표 취소, 관리자 후보 등록)",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/api.test.js"
+  },
+  "engines": { "node": ">=18" }
+}

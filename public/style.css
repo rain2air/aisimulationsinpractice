@@ -1,0 +1,25 @@
+:root{--bg:#f5f6fa;--card:#fff;--text:#1d2433;--muted:#6b7385;--accent:#3b5bdb;--danger:#e03131;--ok:#2f9e44;--line:#e3e6ee}
+@media(prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b1f2a;--text:#e8ebf3;--muted:#98a1b5;--accent:#748ffc;--line:#2b3140}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Noto Sans KR",sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:center;margin:8px 0 16px}
+h1{font-size:1.4rem;margin:0}h2{font-size:1.15rem;margin:0}
+a{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.muted{color:var(--muted);font-size:.9rem}
+.badge{font-size:.75rem;padding:2px 8px;border-radius:99px;background:var(--ok);color:#fff;margin-left:8px;vertical-align:middle}
+.badge.closed{background:var(--muted)}
+.cand{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.cand .info{flex:1;min-width:0}.cand .name{font-weight:600}
+.bar{height:8px;background:var(--line);border-radius:4px;margin-top:6px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.cand.mine .bar>i{background:var(--ok)}
+button{font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+button.danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+button:disabled{opacity:.4;cursor:not-allowed}
+input,textarea{font:inherit;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)}
+.row{display:flex;gap:8px;margin-top:8px}.row>input{flex:1}
+.notice{background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:.9rem}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;max-width:90vw}
+#toast.show{opacity:.95}

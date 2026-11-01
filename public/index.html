@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>투표 플랫폼</title><link rel="stylesheet" href="/style.css"></head>
+<body><main>
+<header><h1>🗳️ 투표 플랫폼</h1><a href="/admin">관리자</a></header>
+<p class="muted">로그인 없이 참여할 수 있으며, 투표당 1표만 가능합니다. 투표 후에도 취소하고 다시 투표할 수 있습니다.</p>
+<div id="polls"></div>
+</main><div id="toast"></div>
+<script type="module">
+import { api, el, guard, candidateRows } from '/common.js';
+const root = document.getElementById('polls');
+const render = (polls) => {
+  root.replaceChildren(...(polls.length ? polls.map(card) : [el('div', { className: 'card muted' }, '진행 중인 투표가 없습니다.')]));
+};
+const card = (p) => {
+  const voted = p.myVote !== null;
+  const rows = candidateRows(p, (c) => {
+    if (!p.open || voted) return el('span');
+    return el('button', { onclick: guard(async () => {
+      if (!confirm(`'${c.name}'에게 투표하시겠습니까?`)) return;
+      await api('POST', `/api/polls/${p.id}/vote`, { candidateId: c.id }); await load();
+    }) }, '투표');
+  });
+  return el('section', { className: 'card' },
+    el('h2', {}, p.title, el('span', { className: 'badge' + (p.open ? '' : ' closed') }, p.open ? '진행중' : '마감')),
+    p.description ? el('div', { className: 'muted' }, p.description) : null,
+    ...(rows.length ? rows : [el('div', { className: 'notice' }, '아직 등록된 후보가 없습니다.')]),
+    el('div', { className: 'row' }, el('span', { className: 'muted', style: 'flex:1' }, `총 ${p.total}표`),
+      voted && p.open ? el('button', { className: 'danger', onclick: guard(async () => {
+        await api('DELETE', `/api/polls/${p.id}/vote`); await load();
+      }) }, '내 투표 취소') : null));
+};
+const load = guard(async () => render(await api('GET', '/api/polls')));
+load(); setInterval(load, 10000);
+</script></body></html>

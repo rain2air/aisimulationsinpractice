@@ -1,2 +1,16 @@
-# aisimulationsinpractice
-practice programing for ai simulation, automation, voice extraction, etc.
+# 투표 플랫폼
+
+로그인 없는 웹 투표 플랫폼 (Node 18+, 외부 의존성 없음).
+
+- 1인 1표: 브라우저별 익명 쿠키로 식별, 투표 후 재투표 불가
+- 투표 취소: 진행 중인 투표는 취소 후 다시 투표 가능
+- 관리자(`/admin`): 비밀번호로 투표 생성/마감/삭제, 후보 등록/삭제
+
+```bash
+ADMIN_PASSWORD=원하는비밀번호 npm start   # http://localhost:3000
+npm test
+```
+
+환경변수: `ADMIN_PASSWORD`(미설정 시 임시 비밀번호를 콘솔에 출력), `PORT`(3000), `DATA_FILE`(data.json)
+
+> 한계: 로그인이 없으므로 쿠키를 삭제/시크릿 창을 쓰면 재투표가 가능합니다. 엄격한 1인 1표가 필요하면 본인 인증이 필요합니다.

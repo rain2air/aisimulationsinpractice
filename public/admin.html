@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>관리자 - 투표 플랫폼</title><link rel="stylesheet" href="/style.css"></head>
+<body><main>
+<header><h1>⚙️ 관리자</h1><a href="/">투표 화면</a></header>
+<div id="app"></div>
+</main><div id="toast"></div>
+<script type="module">
+import { api, el, guard, candidateRows } from '/common.js';
+const app = document.getElementById('app');
+
+async function start() {
+  const { admin } = await api('GET', '/api/admin/me');
+  admin ? await dashboard() : loginForm();
+}
+function loginForm() {
+  const pw = el('input', { type: 'password', placeholder: '관리자 비밀번호', autofocus: true });
+  const go = guard(async () => { await api('POST', '/api/admin/login', { password: pw.value }); await start(); });
+  pw.onkeydown = (e) => e.key === 'Enter' && go();
+  app.replaceChildren(el('div', { className: 'card' }, el('h2', {}, '로그인'), el('div', { className: 'row' }, pw, el('button', { onclick: go }, '확인'))));
+}
+async function dashboard() {
+  const polls = await api('GET', '/api/polls');
+  const title = el('input', { placeholder: '새 투표 제목' });
+  const desc = el('input', { placeholder: '설명 (선택)' });
+  const create = guard(async () => { await api('POST', '/api/admin/polls', { title: title.value, description: desc.value }); await dashboard(); });
+  app.replaceChildren(
+    el('div', { className: 'card' }, el('h2', {}, '새 투표 만들기'), title, el('div', { className: 'row' }, desc, el('button', { onclick: create }, '만들기'))),
+    ...polls.map(pollCard),
+    el('button', { className: 'ghost', onclick: guard(async () => { await api('POST', '/api/admin/logout'); await start(); }) }, '로그아웃'));
+}
+const pollCard = (p) => {
+  const name = el('input', { placeholder: '후보 이름' });
+  const cdesc = el('input', { placeholder: '소개 (선택)' });
+  const add = guard(async () => { await api('POST', `/api/admin/polls/${p.id}/candidates`, { name: name.value, description: cdesc.value }); await dashboard(); });
+  name.onkeydown = cdesc.onkeydown = (e) => e.key === 'Enter' && add();
+  const rows = candidateRows(p, (c) => el('button', { className: 'danger', onclick: guard(async () => {
+    if (!confirm(`'${c.name}' 후보를 삭제하시겠습니까? 해당 후보의 투표도 삭제됩니다.`)) return;
+    await api('DELETE', `/api/admin/polls/${p.id}/candidates/${c.id}`); await dashboard();
+  }) }, '삭제'));
+  return el('section', { className: 'card' },
+    el('h2', {}, p.title, el('span', { className: 'badge' + (p.open ? '' : ' closed') }, p.open ? '진행중' : '마감')),
+    ...rows,
+    el('div', { className: 'row' }, name, cdesc, el('button', { onclick: add }, '후보 등록')),
+    el('div', { className: 'row' },
+      el('button', { className: 'ghost', onclick: guard(async () => { await api('PATCH', `/api/admin/polls/${p.id}`, { open: !p.open }); await dashboard(); }) }, p.open ? '투표 마감' : '투표 재개'),
+      el('button', { className: 'danger', onclick: guard(async () => {
+        if (!confirm('투표 전체를 삭제하시겠습니까?')) return;
+        await api('DELETE', `/api/admin/polls/${p.id}`); await dashboard();
+      }) }, '투표 삭제')));
+};
+guard(start)();
+</script></body></html>
