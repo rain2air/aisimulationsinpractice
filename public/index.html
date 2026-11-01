@@ -2,34 +2,118 @@
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>투표 플랫폼</title><link rel="stylesheet" href="/style.css"></head>
 <body><main>
-<header><h1>🗳️ 투표 플랫폼</h1><a href="/admin">관리자</a></header>
-<p class="muted">로그인 없이 참여할 수 있으며, 투표당 1표만 가능합니다. 투표 후에도 취소하고 다시 투표할 수 있습니다.</p>
+<header><h1>🗳️ 투표 플랫폼</h1><button id="adminBtn" class="ghost">관리자</button></header>
+<div id="login"></div>
+<div id="admin"></div>
+<p class="muted">로그인 없이 참여할 수 있으며, 투표(회장, 총무 …)마다 1표만 가능합니다. 진행 중에는 취소 후 다시 투표할 수 있습니다.</p>
 <div id="polls"></div>
 </main><div id="toast"></div>
 <script type="module">
-import { api, el, guard, candidateRows } from '/common.js';
-const root = document.getElementById('polls');
-const render = (polls) => {
-  root.replaceChildren(...(polls.length ? polls.map(card) : [el('div', { className: 'card muted' }, '진행 중인 투표가 없습니다.')]));
-};
-const card = (p) => {
+import { api, el, guard, toast, candidateRows } from '/common.js';
+const $ = (id) => document.getElementById(id);
+const S = { admin: false, defaultPw: false, polls: [], showLogin: false };
+const LABEL = { ready: '준비중', open: '진행중', closed: '마감' };
+
+async function load() {
+  const [me, polls] = await Promise.all([api('GET', '/api/admin/me'), api('GET', '/api/polls')]);
+  S.admin = me.admin; S.defaultPw = me.defaultPassword; S.polls = polls;
+  render();
+}
+const reload = guard(load);
+const act = (fn) => guard(async () => { await fn(); await load(); });
+
+function render() {
+  const btn = $('adminBtn');
+  btn.textContent = S.admin ? '관리자 로그아웃' : '관리자';
+  renderLogin(); renderAdmin();
+  // 입력 중인 값을 보존하기 위해 관리자 입력이 열려 있으면 목록만 다시 그린다
+  $('polls').replaceChildren(...(S.polls.length ? S.polls.map(card) : [el('div', { className: 'card muted' }, '등록된 투표가 없습니다.' + (S.admin ? '' : ' 관리자가 투표를 만들면 여기에 표시됩니다.'))]));
+}
+
+$('adminBtn').onclick = act(async () => {
+  if (S.admin) { await api('POST', '/api/admin/logout'); S.showLogin = false; }
+  else { S.showLogin = !S.showLogin; }
+});
+
+function renderLogin() {
+  if (!S.showLogin || S.admin) return $('login').replaceChildren();
+  const pw = el('input', { type: 'password', id: 'loginPw', placeholder: '관리자 비밀번호', autocomplete: 'current-password' });
+  const go = act(async () => { await api('POST', '/api/admin/login', { password: pw.value }); S.showLogin = false; });
+  pw.onkeydown = (e) => e.key === 'Enter' && go();
+  $('login').replaceChildren(el('div', { className: 'card' }, el('h2', {}, '관리자 로그인'),
+    el('div', { className: 'row' }, pw, el('button', { onclick: go }, '확인'))));
+  setTimeout(() => pw.focus());
+}
+
+function renderAdmin() {
+  const box = $('admin');
+  if (!S.admin) { delete box.dataset.built; return box.replaceChildren(); }
+  if (box.dataset.built) { // 입력 내용 유지를 위해 한 번만 생성하고 경고만 갱신
+    box.querySelector('.warn').hidden = !S.defaultPw; return;
+  }
+  box.dataset.built = '1';
+  const title = el('input', { id: 'newTitle', placeholder: '투표 명칭 (예: 회장, 총무)' });
+  const create = act(async () => { await api('POST', '/api/admin/polls', { title: title.value }); title.value = ''; });
+  title.onkeydown = (e) => e.key === 'Enter' && create();
+  const cur = el('input', { type: 'password', id: 'curPw', placeholder: '현재 비밀번호', autocomplete: 'current-password' });
+  const next = el('input', { type: 'password', id: 'nextPw', placeholder: '새 비밀번호 (4자 이상)', autocomplete: 'new-password' });
+  const change = act(async () => {
+    await api('POST', '/api/admin/password', { current: cur.value, next: next.value });
+    cur.value = next.value = ''; toast('비밀번호를 변경했습니다');
+  });
+  box.replaceChildren(el('div', { className: 'card' }, el('h2', {}, '관리자 메뉴'),
+    el('div', { className: 'notice warn', hidden: !S.defaultPw }, '⚠️ 기본 비밀번호(root)를 사용 중입니다. 아래에서 변경하세요.'),
+    el('div', { className: 'muted' }, '새 투표 만들기'), el('div', { className: 'row' }, title, el('button', { onclick: create }, '추가')),
+    el('div', { className: 'muted', style: 'margin-top:12px' }, '비밀번호 변경'),
+    el('div', { className: 'row' }, cur, next, el('button', { className: 'ghost', onclick: change }, '변경'))));
+}
+
+function card(p) {
   const voted = p.myVote !== null;
   const rows = candidateRows(p, (c) => {
-    if (!p.open || voted) return el('span');
-    return el('button', { onclick: guard(async () => {
-      if (!confirm(`'${c.name}'에게 투표하시겠습니까?`)) return;
-      await api('POST', `/api/polls/${p.id}/vote`, { candidateId: c.id }); await load();
+    if (S.admin && p.status === 'ready')
+      return el('button', { className: 'danger', onclick: act(async () => { await api('DELETE', `/api/admin/polls/${p.id}/candidates/${c.id}`); }) }, '삭제');
+    if (p.status !== 'open' || voted) return el('span');
+    return el('button', { onclick: act(async () => {
+      if (!confirm(`'${p.title}' 투표: '${c.name}'에게 투표하시겠습니까?`)) return;
+      await api('POST', `/api/polls/${p.id}/vote`, { candidateId: c.id });
     }) }, '투표');
   });
-  return el('section', { className: 'card' },
-    el('h2', {}, p.title, el('span', { className: 'badge' + (p.open ? '' : ' closed') }, p.open ? '진행중' : '마감')),
-    p.description ? el('div', { className: 'muted' }, p.description) : null,
+  const msg = { ready: '아직 투표가 시작되지 않았습니다.', closed: '투표가 마감되었습니다.' }[p.status];
+  const kids = [
+    el('h2', {}, p.title, el('span', { className: `badge ${p.status}` }, LABEL[p.status])),
+    msg ? el('div', { className: 'notice' }, msg) : null,
     ...(rows.length ? rows : [el('div', { className: 'notice' }, '아직 등록된 후보가 없습니다.')]),
     el('div', { className: 'row' }, el('span', { className: 'muted', style: 'flex:1' }, `총 ${p.total}표`),
-      voted && p.open ? el('button', { className: 'danger', onclick: guard(async () => {
-        await api('DELETE', `/api/polls/${p.id}/vote`); await load();
-      }) }, '내 투표 취소') : null));
-};
-const load = guard(async () => render(await api('GET', '/api/polls')));
-load(); setInterval(load, 10000);
+      voted && p.status === 'open' ? el('button', { className: 'danger', onclick: act(async () => { await api('DELETE', `/api/polls/${p.id}/vote`); }) }, '내 투표 취소') : null),
+  ];
+  if (S.admin) kids.push(adminControls(p));
+  return el('section', { className: 'card' }, ...kids);
+}
+
+function adminControls(p) {
+  const wrap = el('div', { className: 'admin-box' });
+  if (p.status === 'ready') {
+    const name = el('input', { placeholder: '후보 이름', id: `cn-${p.id}` });
+    const desc = el('input', { placeholder: '소개 (선택)', id: `cd-${p.id}` });
+    const add = act(async () => { await api('POST', `/api/admin/polls/${p.id}/candidates`, { name: name.value, description: desc.value }); });
+    name.onkeydown = desc.onkeydown = (e) => e.key === 'Enter' && add();
+    wrap.append(el('div', { className: 'row' }, name, desc, el('button', { onclick: add }, '후보 등록')));
+  }
+  const title = el('input', { value: p.title, id: `ti-${p.id}` });
+  wrap.append(el('div', { className: 'row' }, title,
+    el('button', { className: 'ghost', onclick: act(async () => { await api('PATCH', `/api/admin/polls/${p.id}`, { title: title.value }); }) }, '명칭 변경')));
+  const ctl = el('div', { className: 'row' });
+  if (p.status === 'ready') ctl.append(el('button', { onclick: act(async () => { await api('PATCH', `/api/admin/polls/${p.id}`, { status: 'open' }); }) }, '투표 시작'));
+  if (p.status === 'open') ctl.append(el('button', { onclick: act(async () => {
+    if (!confirm('투표를 마감하시겠습니까? 마감 후에는 투표·취소가 모두 불가능합니다.')) return;
+    await api('PATCH', `/api/admin/polls/${p.id}`, { status: 'closed' }); }) }, '투표 마감'));
+  ctl.append(el('button', { className: 'danger', onclick: act(async () => {
+    if (!confirm(`'${p.title}' 투표를 결과와 함께 삭제하시겠습니까?`)) return;
+    await api('DELETE', `/api/admin/polls/${p.id}`); }) }, '투표 삭제'));
+  wrap.append(ctl);
+  return wrap;
+}
+
+reload(); setInterval(() => { if (!document.activeElement || document.activeElement.tagName !== 'INPUT') reload(); }, 10000);
 </script></body></html>

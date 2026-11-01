@@ -23,3 +23,7 @@ input,textarea{font:inherit;width:100%;padding:8px 10px;border:1px solid var(--l
 .notice{background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:.9rem}
 #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;max-width:90vw}
 #toast.show{opacity:.95}
+.badge.ready{background:#f08c00}
+.admin-box{margin-top:12px;padding-top:8px;border-top:2px dashed var(--line)}
+.warn{border-color:var(--danger);color:var(--danger)}
+[hidden]{display:none!important}
