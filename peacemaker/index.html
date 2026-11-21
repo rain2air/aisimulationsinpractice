@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>피스메이커 — 수업용 화면</title>
+<style>
+:root{--bg:#16130f;--panel:#221d17;--ink:#f1e8d6;--mute:#b3a58c;--acc:#e0a04a;--line:#3a3227;--ok:#7fb98a;--warn:#d9654f}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;line-height:1.6}
+button,input,textarea{font:inherit}
+button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:.55em .9em;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);color:#1b1408;border-color:var(--acc);font-weight:700}
+button:disabled{opacity:.4;cursor:default}
+header{position:sticky;top:0;z-index:5;background:rgba(22,19,15,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:.6rem .9rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+header h1{font-size:1rem;margin:0 auto 0 0;font-weight:700}
+.tabs button.on{border-color:var(--acc);color:var(--acc)}
+main{max-width:980px;margin:0 auto;padding:1rem .9rem 6rem}
+.prog{display:flex;gap:4px;margin:.2rem 0 1rem}
+.prog i{flex:1;height:6px;border-radius:3px;background:var(--line);cursor:pointer}
+.prog i.done{background:#6d5a3a}.prog i.on{background:var(--acc)}
+.scene h2{font-size:1.5rem;margin:.2rem 0 .1rem}
+.meta{color:var(--mute);font-size:.9rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem}
+.timer{font-variant-numeric:tabular-nums;font-size:1.5rem;font-weight:700;color:var(--ink);min-width:4.2ch}
+.timer.over{color:var(--warn)}
+.media{background:#000;border-radius:14px;overflow:hidden;margin:.6rem 0;border:1px solid var(--line)}
+.media img{display:block;width:100%;height:auto}
+.credit{color:var(--mute);font-size:.78rem;padding:.35rem .7rem;background:var(--panel)}
+.vwrap{position:relative;aspect-ratio:16/9;background:#000}
+.vwrap iframe,.vwrap video,.vwrap .ph{position:absolute;inset:0;width:100%;height:100%;border:0}
+.ph{display:flex;align-items:center;justify-content:center;text-align:center;color:var(--mute);padding:1rem;font-size:.95rem}
+.vbar{display:flex;gap:.5rem;align-items:center;padding:.5rem .7rem;background:var(--panel);flex-wrap:wrap}
+.seg{flex:1;min-width:120px;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.seg b{display:block;height:100%;width:0;background:var(--acc)}
+.segt{font-variant-numeric:tabular-nums;color:var(--mute);font-size:.85rem}
+blockquote{margin:.8rem 0;padding:.7rem 1rem;border-left:4px solid var(--acc);background:var(--panel);border-radius:0 10px 10px 0;font-size:1.05rem}
+.q{font-size:1.6rem;font-weight:700;line-height:1.4;margin:1.2rem 0;padding:1rem 1.1rem;border:2px solid var(--acc);border-radius:14px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.6rem .9rem;margin:.6rem 0}
+summary{cursor:pointer;color:var(--mute)}
+details ol{margin:.5rem 0 .2rem;padding-left:1.2rem}
+details li{margin:.35rem 0}
+.editor{border:1px dashed var(--acc);border-radius:12px;padding:.7rem;margin:.6rem 0;background:#1b1712}
+.editor label{display:block;font-size:.85rem;color:var(--mute);margin:.4rem 0 .15rem}
+.editor input[type=text]{width:100%;padding:.5em .6em;border-radius:8px;border:1px solid var(--line);background:#120f0b;color:var(--ink)}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:end}
+.row>div{flex:1;min-width:110px}
+.hint{font-size:.82rem;color:var(--mute);margin:.3rem 0}
+.hint a{color:var(--acc)}
+footer{position:fixed;left:0;right:0;bottom:0;background:rgba(22,19,15,.96);border-top:1px solid var(--line);padding:.6rem .9rem;display:flex;gap:.6rem;justify-content:space-between;align-items:center}
+footer button{flex:1;max-width:220px;padding:.8em}
+.note{background:#3a2a16;border:1px solid #6d4f22;color:#f3d9a8;border-radius:10px;padding:.6rem .8rem;margin:.6rem 0;font-size:.9rem}
+dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;max-width:min(92vw,640px);width:100%}
+dialog textarea{width:100%;height:220px;background:#120f0b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:.6rem;font-family:ui-monospace,monospace;font-size:.82rem}
+body.present details.script{display:none}
+body.present .q{font-size:2.1rem}
+@media (max-width:560px){.scene h2{font-size:1.25rem}.q{font-size:1.3rem}body.present .q{font-size:1.5rem}}
+</style>
+</head>
+<body>
+<header>
+  <h1>피스메이커 · 수업용 화면</h1>
+  <span class="tabs"><button data-plan="B">B안</button> <button data-plan="A">A안</button></span>
+  <button id="btnPresent" title="대본을 숨기고 학생에게 보여 줄 화면만 남깁니다">발표 화면</button>
+  <button id="btnEdit" title="영상 주소와 재생 구간을 맞춥니다">구간 편집</button>
+  <button id="btnIO">내보내기</button>
+</header>
+<main>
+  <div id="warn"></div>
+  <div class="prog" id="prog"></div>
+  <section class="scene" id="scene"></section>
+</main>
+<footer>
+  <button id="prev">← 이전</button>
+  <span id="pos" class="segt"></span>
+  <button id="next" class="primary">다음 →</button>
+</footer>
+<dialog id="dlg">
+  <h3 style="margin-top:0">영상 구간 설정 내보내기 / 가져오기</h3>
+  <p class="hint">아래 내용을 <b>cues.json</b>으로 저장해 페이지와 같은 폴더에 두면, 모든 기기에서 같은 구간이 재생됩니다. 다른 기기에서 맞춘 설정을 붙여 넣고 '가져오기'를 눌러도 됩니다.</p>
+  <textarea id="io"></textarea>
+  <div class="row" style="margin-top:.6rem"><button id="ioCopy">복사</button><button id="ioLoad">가져오기</button><button id="ioClose" class="primary">닫기</button></div>
+</dialog>
+<script src="lesson.js"></script>
+<script>
+(function(){
+"use strict";
+var L = window.LESSON, LS = "peacemaker.cues.v1";
+var state = { plan: "B", idx: 0, edit: false, cues: {}, timer: null, left: 0, running: false };
+var yt = { ready: false, player: null, poll: null, pending: null };
+var $ = function(s){ return document.querySelector(s); };
+function el(tag, attrs, kids){ var e=document.createElement(tag); if(attrs) for(var k in attrs){ if(k==="text") e.textContent=attrs[k]; else if(k==="html") e.innerHTML=attrs[k]; else if(k.slice(0,2)==="on") e.addEventListener(k.slice(2),attrs[k]); else e.setAttribute(k,attrs[k]); } (kids||[]).forEach(function(c){ if(c) e.appendChild(typeof c==="string"?document.createTextNode(c):c); }); return e; }
+function loadLocal(){ try{ return JSON.parse(localStorage.getItem(LS)||"{}"); }catch(e){ return {}; } }
+function saveLocal(){ try{ localStorage.setItem(LS, JSON.stringify(state.cues)); }catch(e){} }
+function fmt(s){ s=Math.max(0,Math.round(s)); var m=Math.floor(s/60), r=s%60; return m+":"+(r<10?"0":"")+r; }
+function parseTime(v){ v=String(v||"").trim(); if(!v) return 0; if(/^\d+(\.\d+)?$/.test(v)) return parseFloat(v); var p=v.split(":").map(Number); if(p.some(isNaN)) return 0; return p.reduce(function(a,b){return a*60+b;},0); }
+function ytId(u){ u=String(u||"").trim(); if(/^[\w-]{11}$/.test(u)) return u; var m=u.match(/(?:youtu\.be\/|v=|\/embed\/|\/shorts\/|\/live\/)([\w-]{11})/); return m?m[1]:""; }
+function scenes(){ return L.plans[state.plan].scenes; }
+function cur(){ return scenes()[state.idx]; }
+
+// ---------- 타이머 ----------
+function stopTimer(){ clearInterval(state.timer); state.timer=null; state.running=false; }
+function drawTimer(){ var t=$("#timer"); if(!t) return; t.textContent=(state.left<0?"+":"")+fmt(Math.abs(state.left)); t.classList.toggle("over", state.left<0); var b=$("#tbtn"); if(b) b.textContent=state.running?"일시정지":"시작"; }
+function toggleTimer(){ if(state.running){ stopTimer(); } else { state.running=true; state.timer=setInterval(function(){ state.left-=1; drawTimer(); },1000); } drawTimer(); }
+function resetTimer(){ stopTimer(); state.left=Math.round(cur().min*60); drawTimer(); }
+
+// ---------- 영상: 정해진 구간만 재생 ----------
+function killPlayer(){ clearInterval(yt.poll); yt.poll=null; if(yt.player&&yt.player.destroy){ try{ yt.player.destroy(); }catch(e){} } yt.player=null; }
+function ensureApi(cb){ if(yt.ready) return cb(); yt.pending=cb; if(!document.getElementById("ytapi")){ var s=el("script",{id:"ytapi",src:"https://www.youtube.com/iframe_api"}); document.head.appendChild(s); } }
+window.onYouTubeIframeAPIReady=function(){ yt.ready=true; if(yt.pending){ var f=yt.pending; yt.pending=null; f(); } };
+function cueFor(key){ return state.cues[key]||{}; }
+function segUI(pos,c){ var len=Math.max(0.1,(c.end||0)-(c.start||0)); var b=$("#segb"), t=$("#segt"); if(b) b.style.width=Math.min(100,Math.max(0,(pos-(c.start||0))/len*100))+"%"; if(t) t.textContent=fmt(Math.max(0,pos-(c.start||0)))+" / "+fmt(len); }
+function mountVideo(box,key){
+  killPlayer(); box.innerHTML="";
+  var c=cueFor(key);
+  if(c.file){
+    var v=el("video",{src:c.file,playsinline:"",preload:"metadata",controls:""}); box.appendChild(v);
+    v.addEventListener("loadedmetadata",function(){ v.currentTime=c.start||0; });
+    v.addEventListener("timeupdate",function(){ segUI(v.currentTime,c); if(c.end&&v.currentTime>=c.end&&!v.paused&&!state.free){ v.pause(); } });
+    yt.player={ file:v, playSeg:function(){ state.free=false; v.currentTime=c.start||0; v.play(); }, now:function(){ return v.currentTime; }, pause:function(){ v.pause(); }, destroy:function(){ v.pause(); } };
+    return;
+  }
+  if(!c.id){ box.appendChild(el("div",{class:"ph",text:"아직 영상이 연결되지 않았습니다. 위의 '구간 편집'을 눌러 유튜브 주소와 재생 구간을 넣어 주세요."})); return; }
+  box.appendChild(el("div",{id:"ytbox"}));
+  ensureApi(function(){
+    if(!document.getElementById("ytbox")) return;
+    var p=new YT.Player("ytbox",{ videoId:c.id, playerVars:{ start:Math.floor(c.start||0), rel:0, playsinline:1, modestbranding:1 },
+      events:{ onError:function(e){ box.innerHTML=""; box.appendChild(el("div",{class:"ph",text:"이 영상은 여기서 재생할 수 없습니다 (오류 "+e.data+"). 다른 사이트 재생이 막힌 영상일 수 있습니다. 다른 영상을 넣거나, 파일로 받아 assets 폴더에 넣어 주세요."})); } } });
+    yt.player={ yt:p,
+      playSeg:function(){ state.free=false; p.seekTo(c.start||0,true); p.playVideo(); },
+      now:function(){ return p.getCurrentTime?p.getCurrentTime():0; },
+      pause:function(){ p.pauseVideo&&p.pauseVideo(); },
+      destroy:function(){ p.destroy(); } };
+    yt.poll=setInterval(function(){ if(!p.getCurrentTime) return; var t=p.getCurrentTime(); segUI(t,c); if(c.end&&t>=c.end&&!state.free&&p.getPlayerState&&p.getPlayerState()===1){ p.pauseVideo(); } },150);
+  });
+}
+function videoBlock(v){
+  var c=cueFor(v.key);
+  var box=el("div",{class:"vwrap",id:"vwrap"});
+  var bar=el("div",{class:"vbar"},[
+    el("button",{class:"primary",text:"▶ 구간 재생",onclick:function(){ if(yt.player&&yt.player.playSeg) yt.player.playSeg(); }}),
+    el("button",{text:"■ 정지",onclick:function(){ if(yt.player&&yt.player.pause) yt.player.pause(); }}),
+    el("div",{class:"seg"},[el("b",{id:"segb"})]),
+    el("span",{class:"segt",id:"segt",text:(c.end?fmt((c.end||0)-(c.start||0)):"구간 미설정")})
+  ]);
+  var wrap=el("div",{class:"media"},[box,bar]);
+  var out=[wrap];
+  if(state.edit) out.push(editor(v));
+  setTimeout(function(){ mountVideo(box,v.key); },0);
+  return out;
+}
+function editor(v){
+  var c=cueFor(v.key);
+  var url=el("input",{type:"text",placeholder:"유튜브 주소 또는 assets/파일이름.mp4",value:c.file||(c.id?"https://youtu.be/"+c.id:"")});
+  var st=el("input",{type:"text",value:fmt(c.start||0)}), en=el("input",{type:"text",value:c.end?fmt(c.end):""});
+  function apply(){ var u=url.value.trim(), n={ start:parseTime(st.value), end:parseTime(en.value) }; if(/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(u)) n.file=u; else n.id=ytId(u); if(n.end&&n.end<=n.start) n.end=0; state.cues[v.key]=n; saveLocal(); render(); }
+  function grab(inp){ if(yt.player&&yt.player.now){ inp.value=fmt(yt.player.now()); apply(); } }
+  return el("div",{class:"editor"},[
+    el("div",{class:"hint",html:v.hint+(v.page?' · <a href="'+v.page+'" target="_blank" rel="noopener">원본 페이지 열기</a>':"")}),
+    el("label",{text:"영상 주소"}), url,
+    el("div",{class:"row"},[
+      el("div",{},[el("label",{text:"시작 (분:초)"}),st]),
+      el("div",{},[el("label",{text:"끝 (분:초)"}),en]),
+      el("button",{text:"적용",class:"primary",onclick:apply})
+    ]),
+    el("div",{class:"row",style:"margin-top:.5rem"},[
+      el("button",{text:"지금 위치 → 시작",onclick:function(){ grab(st); }}),
+      el("button",{text:"지금 위치 → 끝",onclick:function(){ grab(en); }}),
+      el("button",{text:"자유 재생(구간 무시)",onclick:function(){ state.free=true; }})
+    ]),
+    el("div",{class:"hint",text:"영상을 틀어 놓고 원하는 장면에서 '지금 위치 → 시작', 끝낼 곳에서 '지금 위치 → 끝'을 누르면 구간이 저장됩니다. 설정은 이 기기에 저장되고, '내보내기'로 다른 기기와 맞출 수 있습니다."})
+  ]);
+}
+
+// ---------- 화면 그리기 ----------
+function render(){
+  stopTimer(); killPlayer(); state.free=false;
+  var s=cur(), list=scenes();
+  document.body.classList.toggle("present", state.present===true);
+  document.querySelectorAll(".tabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.plan===state.plan); });
+  $("#btnEdit").classList.toggle("primary", state.edit); $("#btnPresent").classList.toggle("primary", !!state.present);
+  var pg=$("#prog"); pg.innerHTML=""; list.forEach(function(x,i){ pg.appendChild(el("i",{class:i<state.idx?"done":(i===state.idx?"on":""),title:x.title,onclick:function(){ state.idx=i; render(); }})); });
+  var sc=$("#scene"); sc.innerHTML="";
+  sc.appendChild(el("h2",{text:s.title}));
+  state.left=Math.round(s.min*60);
+  sc.appendChild(el("div",{class:"meta"},[ el("span",{text:L.plans[state.plan].name}), el("span",{text:s.min+"분"}), el("span",{class:"timer",id:"timer"}), el("button",{id:"tbtn",onclick:toggleTimer}), el("button",{text:"처음으로",onclick:resetTimer}) ]));
+  if(s.video){ videoBlock(s.video).forEach(function(n){ sc.appendChild(n); }); }
+  if(s.image){ sc.appendChild(el("div",{class:"media"},[ el("img",{src:s.image.src,alt:s.image.alt,loading:"lazy"}), el("div",{class:"credit",text:s.image.credit}) ])); }
+  if(s.verse) sc.appendChild(el("blockquote",{text:s.verse}));
+  if(s.question) sc.appendChild(el("div",{class:"q",text:s.question}));
+  if(s.script){ var d=el("details",{class:"script",open:""},[ el("summary",{text:"교사용 진행 메모"}), el("ol",{}, s.script.map(function(t){ return el("li",{text:t}); })) ]); sc.appendChild(d); }
+  $("#prev").disabled=state.idx===0; $("#next").disabled=state.idx===list.length-1;
+  $("#pos").textContent=(state.idx+1)+" / "+list.length;
+  drawTimer(); window.scrollTo(0,0);
+  try{ history.replaceState(null,"","#"+state.plan+"-"+(state.idx+1)); }catch(e){}
+}
+function go(d){ var n=state.idx+d; if(n<0||n>=scenes().length) return; state.idx=n; render(); }
+
+// ---------- 시작 ----------
+document.querySelectorAll(".tabs button").forEach(function(b){ b.addEventListener("click",function(){ state.plan=b.dataset.plan; state.idx=0; render(); }); });
+$("#prev").addEventListener("click",function(){ go(-1); }); $("#next").addEventListener("click",function(){ go(1); });
+$("#btnEdit").addEventListener("click",function(){ state.edit=!state.edit; if(state.edit) state.present=false; render(); });
+$("#btnPresent").addEventListener("click",function(){ state.present=!state.present; if(state.present) state.edit=false; render(); });
+document.addEventListener("keydown",function(e){ if(/INPUT|TEXTAREA/.test(e.target.tagName)) return; if(e.key==="ArrowRight"||e.key==="PageDown") go(1); if(e.key==="ArrowLeft"||e.key==="PageUp") go(-1); if(e.key===" "){ e.preventDefault(); if(yt.player&&yt.player.playSeg) yt.player.playSeg(); } });
+var dlg=$("#dlg");
+$("#btnIO").addEventListener("click",function(){ $("#io").value=JSON.stringify(state.cues,null,2); dlg.showModal(); });
+$("#ioClose").addEventListener("click",function(){ dlg.close(); });
+$("#ioCopy").addEventListener("click",function(){ var t=$("#io"); t.select(); try{ navigator.clipboard.writeText(t.value); }catch(e){ document.execCommand("copy"); } });
+$("#ioLoad").addEventListener("click",function(){ try{ state.cues=JSON.parse($("#io").value||"{}"); saveLocal(); dlg.close(); render(); }catch(e){ $("#io").value="형식이 맞지 않습니다: "+e.message; } });
+if(location.protocol==="file:"){ $("#warn").appendChild(el("div",{class:"note",text:"이 페이지를 파일로 직접 열었습니다. 유튜브 영상은 서버(http/https 주소)에서 열어야 재생됩니다. 그림과 타이머는 그대로 쓸 수 있습니다."})); }
+var h=(location.hash||"").match(/^#([AB])-(\d+)$/); if(h){ state.plan=h[1]; state.idx=Math.min(L.plans[h[1]].scenes.length-1,Math.max(0,parseInt(h[2],10)-1)); }
+function start(file){ var local=loadLocal(); state.cues=Object.assign({}, file||{}, local); render(); }
+fetch("cues.json",{cache:"no-store"}).then(function(r){ return r.ok?r.json():{}; }).then(start).catch(function(){ start({}); });
+})();
+</script>
+</body>
+</html>
