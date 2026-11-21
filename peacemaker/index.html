@@ -30,6 +30,9 @@ main{max-width:980px;margin:0 auto;padding:1rem .9rem 6rem}
 .vwrap{position:relative;aspect-ratio:16/9;background:#000}
 .vwrap iframe,.vwrap video,.vwrap .ph{position:absolute;inset:0;width:100%;height:100%;border:0}
 .ph{display:flex;align-items:center;justify-content:center;text-align:center;color:var(--mute);padding:1rem;font-size:.95rem}
+.ksub{display:none;background:#000;color:#fff;text-align:center;padding:.55rem .8rem .7rem;font-size:1.08rem;line-height:1.45;font-weight:600;word-break:keep-all}
+body.present .ksub{font-size:1.6rem}
+.editor textarea{width:100%;padding:.5em .6em;border-radius:8px;border:1px solid var(--line);background:#120f0b;color:var(--ink);font:inherit;font-size:.9rem}
 .vbar{display:flex;gap:.5rem;align-items:center;padding:.5rem .7rem;background:var(--panel);flex-wrap:wrap}
 .seg{flex:1;min-width:120px;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
 .seg b{display:block;height:100%;width:0;background:var(--acc)}
@@ -88,7 +91,8 @@ body.present .q{font-size:2.1rem}
 (function(){
 "use strict";
 var L = window.LESSON, LS = "peacemaker.cues.v1";
-var state = { plan: "B", idx: 0, edit: false, cues: {}, timer: null, left: 0, running: false };
+var state = { plan: "B", idx: 0, edit: false, cues: {}, timer: null, left: 0, running: false, sub: true };
+try{ if(localStorage.getItem("peacemaker.sub")==="0") state.sub=false; }catch(e){}
 var yt = { ready: false, player: null, poll: null, pending: null };
 var $ = function(s){ return document.querySelector(s); };
 function el(tag, attrs, kids){ var e=document.createElement(tag); if(attrs) for(var k in attrs){ if(k==="text") e.textContent=attrs[k]; else if(k==="html") e.innerHTML=attrs[k]; else if(k.slice(0,2)==="on") e.addEventListener(k.slice(2),attrs[k]); else e.setAttribute(k,attrs[k]); } (kids||[]).forEach(function(c){ if(c) e.appendChild(typeof c==="string"?document.createTextNode(c):c); }); return e; }
@@ -111,15 +115,20 @@ function killPlayer(){ clearInterval(yt.poll); yt.poll=null; if(yt.player&&yt.pl
 function ensureApi(cb){ if(yt.ready) return cb(); yt.pending=cb; if(!document.getElementById("ytapi")){ var s=el("script",{id:"ytapi",src:"https://www.youtube.com/iframe_api"}); document.head.appendChild(s); } }
 window.onYouTubeIframeAPIReady=function(){ yt.ready=true; if(yt.pending){ var f=yt.pending; yt.pending=null; f(); } };
 function cueFor(key){ return state.cues[key]||{}; }
+function subsFor(key){ var c=cueFor(key); if(c.subs&&c.subs.length) return c.subs; return (LESSON.subs||{})[c.id||c.file]||[]; }
+function subUI(t,key){ var s=$("#ksub"); if(!s) return; var L=subsFor(key), cur=""; if(state.sub){ for(var i=0;i<L.length;i++){ if(t+0.25>=L[i].at) cur=L[i].text; } if(!cur&&L.length) cur=L[0].text; } s.style.display=cur?"block":"none"; if(s.textContent!==cur) s.textContent=cur; }
+function subsText(L){ return (L||[]).map(function(x){ return fmt(x.at)+" "+x.text; }).join("\n"); }
+function parseSubs(txt){ var out=[]; String(txt||"").split(/\n/).forEach(function(l){ var m=l.match(/^\s*(\d+:\d{1,2}|\d+)\s+(.+?)\s*$/); if(m) out.push({at:parseTime(m[1]),text:m[2]}); }); out.sort(function(a,b){return a.at-b.at;}); return out; }
+function ytKorean(p){ try{ var L=p.getOption("captions","tracklist")||[]; if(!L.length) return; var ko=L.filter(function(x){ return /^ko/.test(x.languageCode||""); })[0]; if(ko){ p.setOption("captions","track",{languageCode:ko.languageCode}); } else { p.setOption("captions","track",{languageCode:L[0].languageCode,translationLanguage:{languageCode:"ko",languageName:"한국어"}}); } }catch(e){} }
 function altsFor(key){ var out=[]; Object.keys(LESSON.plans).forEach(function(k){ LESSON.plans[k].scenes.forEach(function(sc){ if(sc.video&&sc.video.key===key&&sc.video.alts) out=sc.video.alts; }); }); return out; }
 function segUI(pos,c){ var len=Math.max(0.1,(c.end||0)-(c.start||0)); var b=$("#segb"), t=$("#segt"); if(b) b.style.width=Math.min(100,Math.max(0,(pos-(c.start||0))/len*100))+"%"; if(t) t.textContent=fmt(Math.max(0,pos-(c.start||0)))+" / "+fmt(len); }
 function mountVideo(box,key){
   killPlayer(); box.innerHTML="";
-  var c=cueFor(key);
+  var c=cueFor(key); subUI(c.start||0,key);
   if(c.file){
     var v=el("video",{src:c.file,playsinline:"",preload:"metadata",controls:""}); box.appendChild(v);
     v.addEventListener("loadedmetadata",function(){ v.currentTime=c.start||0; });
-    v.addEventListener("timeupdate",function(){ segUI(v.currentTime,c); if(c.end&&v.currentTime>=c.end&&!v.paused&&!state.free){ v.pause(); } });
+    v.addEventListener("timeupdate",function(){ segUI(v.currentTime,c); subUI(v.currentTime,key); if(c.end&&v.currentTime>=c.end&&!v.paused&&!state.free){ v.pause(); } });
     yt.player={ file:v, playSeg:function(){ state.free=false; v.currentTime=c.start||0; v.play(); }, now:function(){ return v.currentTime; }, pause:function(){ v.pause(); }, destroy:function(){ v.pause(); } };
     return;
   }
@@ -127,8 +136,8 @@ function mountVideo(box,key){
   box.appendChild(el("div",{id:"ytbox"}));
   ensureApi(function(){
     if(!document.getElementById("ytbox")) return;
-    var p=new YT.Player("ytbox",{ videoId:c.id, playerVars:{ start:Math.floor(c.start||0), rel:0, playsinline:1, modestbranding:1 },
-      events:{ onError:function(e){ box.innerHTML=""; var a=altsFor(key), i=a.map(function(x){return x.id;}).indexOf(c.id), nx=a.length>1?a[(i+1)%a.length]:null;
+    var p=new YT.Player("ytbox",{ videoId:c.id, playerVars:{ start:Math.floor(c.start||0), rel:0, playsinline:1, modestbranding:1, cc_load_policy:1, cc_lang_pref:"ko", hl:"ko" },
+      events:{ onApiChange:function(){ ytKorean(p); }, onError:function(e){ box.innerHTML=""; var a=altsFor(key), i=a.map(function(x){return x.id;}).indexOf(c.id), nx=a.length>1?a[(i+1)%a.length]:null;
         box.appendChild(el("div",{class:"ph"},[el("div",{},[
           el("div",{text:"이 기기에서는 이 영상이 페이지 안에서 재생되지 않습니다 (오류 "+e.data+")."}),
           el("div",{class:"row",style:"justify-content:center;margin-top:.6rem"},[
@@ -140,7 +149,7 @@ function mountVideo(box,key){
       now:function(){ return p.getCurrentTime?p.getCurrentTime():0; },
       pause:function(){ p.pauseVideo&&p.pauseVideo(); },
       destroy:function(){ p.destroy(); } };
-    yt.poll=setInterval(function(){ if(!p.getCurrentTime) return; var t=p.getCurrentTime(); segUI(t,c); if(c.end&&t>=c.end&&!state.free&&p.getPlayerState&&p.getPlayerState()===1){ p.pauseVideo(); } },150);
+    yt.poll=setInterval(function(){ if(!p.getCurrentTime) return; var t=p.getCurrentTime(); segUI(t,c); subUI(t,key); if(c.end&&t>=c.end&&!state.free&&p.getPlayerState&&p.getPlayerState()===1){ p.pauseVideo(); } },150);
   });
 }
 function videoBlock(v){
@@ -150,9 +159,10 @@ function videoBlock(v){
     el("button",{class:"primary",text:"▶ 구간 재생",onclick:function(){ if(yt.player&&yt.player.playSeg) yt.player.playSeg(); }}),
     el("button",{text:"■ 정지",onclick:function(){ if(yt.player&&yt.player.pause) yt.player.pause(); }}),
     el("div",{class:"seg"},[el("b",{id:"segb"})]),
-    el("span",{class:"segt",id:"segt",text:(c.end?fmt((c.end||0)-(c.start||0)):"구간 미설정")})
+    el("span",{class:"segt",id:"segt",text:(c.end?fmt((c.end||0)-(c.start||0)):"구간 미설정")}),
+    el("button",{class:state.sub?"primary":"",text:"한글 자막",title:"화면 아래 한글 해설 자막을 켜고 끕니다",onclick:function(){ state.sub=!state.sub; try{ localStorage.setItem("peacemaker.sub",state.sub?"1":"0"); }catch(e){} this.classList.toggle("primary",state.sub); subUI(yt.player&&yt.player.now?yt.player.now():(c.start||0),v.key); }})
   ]);
-  var wrap=el("div",{class:"media"},[box,bar]);
+  var wrap=el("div",{class:"media"},[box,el("div",{class:"ksub",id:"ksub"}),bar]);
   var out=[wrap];
   if(state.edit) out.push(editor(v));
   setTimeout(function(){ mountVideo(box,v.key); },0);
@@ -162,7 +172,8 @@ function editor(v){
   var c=cueFor(v.key);
   var url=el("input",{type:"text",placeholder:"유튜브 주소 또는 assets/파일이름.mp4",value:c.file||(c.id?"https://youtu.be/"+c.id:"")});
   var st=el("input",{type:"text",value:fmt(c.start||0)}), en=el("input",{type:"text",value:c.end?fmt(c.end):""});
-  function apply(){ var u=url.value.trim(), n={ start:parseTime(st.value), end:parseTime(en.value) }; if(/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(u)) n.file=u; else n.id=ytId(u); if(n.end&&n.end<=n.start) n.end=0; state.cues[v.key]=n; saveLocal(); render(); }
+  var sb=el("textarea",{rows:"4",placeholder:"0:30 자막 내용 (한 줄에 하나)"}); var shown=subsText(subsFor(v.key)); sb.value=shown;
+  function apply(){ var u=url.value.trim(), n={ start:parseTime(st.value), end:parseTime(en.value) };  if(/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(u)) n.file=u; else n.id=ytId(u); if(sb.value!==shown) n.subs=parseSubs(sb.value); else if(c.subs&&(n.id||n.file)===(c.id||c.file)) n.subs=c.subs; if(n.end&&n.end<=n.start) n.end=0; state.cues[v.key]=n; saveLocal(); render(); }
   function grab(inp){ if(yt.player&&yt.player.now){ inp.value=fmt(yt.player.now()); apply(); } }
   return el("div",{class:"editor"},[
     el("div",{class:"hint",html:v.hint+(v.page?' · <a href="'+v.page+'" target="_blank" rel="noopener">원본 페이지 열기</a>':"")}),
@@ -175,6 +186,7 @@ function editor(v){
       el("div",{},[el("label",{text:"끝 (분:초)"}),en]),
       el("button",{text:"적용",class:"primary",onclick:apply})
     ]),
+    el("label",{text:"한글 자막 — '분:초 내용' 형식, 고친 뒤 '적용'"}), sb,
     el("div",{class:"row",style:"margin-top:.5rem"},[
       el("button",{text:"지금 위치 → 시작",onclick:function(){ grab(st); }}),
       el("button",{text:"지금 위치 → 끝",onclick:function(){ grab(en); }}),
